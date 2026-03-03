@@ -16,8 +16,6 @@ const Availability = require('./models/Availability');
 
 // الاتصال بقاعدة البيانات
 mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   tlsAllowInvalidCertificates: true,
   tlsAllowInvalidHostnames: true
 })
