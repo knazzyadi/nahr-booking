@@ -14,7 +14,7 @@ const User = require('./models/User');
 const Booking = require('./models/Booking');
 const Availability = require('./models/Availability');
 
-// الاتصال بقاعدة البيانات مع خيارات TLS
+// الاتصال بقاعدة البيانات (مع خيارات TLS لتجاوز مشكلة SSL)
 mongoose.connect(process.env.MONGODB_URI, {
   tlsAllowInvalidCertificates: true,
   tlsAllowInvalidHostnames: true
