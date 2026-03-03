@@ -14,23 +14,15 @@ const User = require('./models/User');
 const Booking = require('./models/Booking');
 const Availability = require('./models/Availability');
 
-// الاتصال بقاعدة البيانات (بدون خيارات قديمة)
-mongoose.connect(process.env.MONGODB_URI)
+// الاتصال بقاعدة البيانات مع خيارات TLS
+mongoose.connect(process.env.MONGODB_URI, {
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true
+})
   .then(() => console.log('✅ تم الاتصال بقاعدة البيانات بنجاح'))
   .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
 // إعداد MongoDB لتخزين الجلسات مع خيارات SSL
-const store = new MongoDBStore({
-  uri: process.env.MONGODB_URI,
-  collection: 'sessions',
-  expires: 1000 * 60 * 60 * 24 * 30,
-  connectionOptions: {
-    tlsAllowInvalidCertificates: true,
-    tlsAllowInvalidHostnames: true
-  }
-});
-
-// إعداد MongoDB لتخزين الجلسات
 const store = new MongoDBStore({
   uri: process.env.MONGODB_URI,
   collection: 'sessions',
