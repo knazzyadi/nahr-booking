@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
+const MongoDBStore = require('connect-mongodb-session')(session);
 const multer = require('multer');
 const path = require('path');
 require('dotenv').config();
@@ -18,15 +19,24 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ تم الاتصال بقاعدة البيانات بنجاح'))
   .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
+// إعداد MongoDB لتخزين الجلسات
+const store = new MongoDBStore({
+  uri: process.env.MONGODB_URI,
+  collection: 'sessions',
+  expires: 1000 * 60 * 60 * 24 * 30 // 30 يوم
+});
+
 // إعداد الجلسات
 app.use(session({
-  secret: 'سر_تشفير_الجلسة_غير_هذه_القيمة',
+  secret: process.env.SESSION_SECRET || 'سر_تشفير_الجلسة_غير_هذه_القيمة',
   resave: false,
   saveUninitialized: false,
+  store: store,
   cookie: { 
-    secure: false,
+    secure: true, // لأن Render يستخدم HTTPS
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 30
   }
 }));
 
@@ -126,7 +136,7 @@ function requireLogin(req, res, next) {
   }
 }
 
-// صفحة لوحة التحكم الرئيسية للمهني
+// صفحة لوحة التحكم الرئيسية للمهني (محسنة مع تحرير مباشر)
 app.get('/dashboard', requireLogin, async (req, res) => {
   try {
     const user = await User.findById(req.session.userId);
@@ -141,7 +151,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 
     let adminLink = '';
     if (user.role === 'admin') {
-      adminLink = '<a href="/admin" class="sidebar-item"><i class="fas fa-crown"></i> لوحة تحكم المالك</a>';
+      adminLink = '<a href="/admin" class="list-group-item list-group-item-action bg-transparent text-white"><i class="bi bi-shield-lock"></i> لوحة تحكم المالك</a>';
     }
 
     res.send(`
@@ -164,85 +174,6 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-        }
-        /* القائمة الجانبية للشاشات الكبيرة */
-        .sidebar {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 260px;
-            height: calc(100vh - 40px);
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 30px;
-            padding: 25px 15px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-        }
-        .sidebar-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .sidebar-header h4 {
-            color: white;
-            font-size: 1.3rem;
-            margin-bottom: 5px;
-        }
-        .sidebar-header p {
-            color: rgba(255,255,255,0.7);
-            font-size: 0.9rem;
-        }
-        .sidebar-menu {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 15px;
-            border-radius: 40px;
-            color: white;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .sidebar-item i {
-            width: 24px;
-            font-size: 1.2rem;
-            color: #FFD700;
-        }
-        .sidebar-item:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateX(-5px);
-        }
-        .sidebar-item.active {
-            background: rgba(255,255,255,0.2);
-            font-weight: 600;
-        }
-        .badge-sidebar {
-            position: absolute;
-            left: 15px;
-            background: #FF7675;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        /* المحتوى الرئيسي */
-        .main-content {
-            margin-right: 280px;
-            padding: 0 20px;
         }
         /* الشريط العلوي */
         .top-bar {
@@ -565,10 +496,10 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             border: none;
             color: white;
             border-radius: 40px;
-            padding: 15px 30px;
+            padding: 12px 25px;
             font-weight: 600;
             width: 100%;
-            font-size: 1.1rem;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -578,157 +509,122 @@ app.get('/dashboard', requireLogin, async (req, res) => {
         }
         .form-control {
             width: 100%;
-            padding: 15px 20px;
+            padding: 10px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 30px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: all 0.3s ease;
-            margin-bottom: 15px;
+            background: white;
         }
         .form-control:focus {
             outline: none;
             border-color: #6C5CE7;
             box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
         }
-        .progress {
-            height: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            background: rgba(0,0,0,0.1);
+        /* تنسيق حقل الجوال الموحد */
+        .phone-wrapper {
+            display: flex;
+            align-items: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 30px;
+            overflow: hidden;
+            background: white;
         }
-        .progress-bar {
-            height: 100%;
+        .phone-prefix {
             background: linear-gradient(135deg, #6C5CE7, #a363d9);
-            border-radius: 5px;
-            transition: width 0.3s ease;
+            color: white;
+            padding: 10px 15px;
+            font-weight: 500;
+            border-left: 2px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
         }
-        @media (max-width: 1024px) {
-            .sidebar {
-                width: 220px;
-            }
-            .main-content {
-                margin-right: 240px;
-            }
+        .phone-input {
+            border: none;
+            border-radius: 0;
+            padding: 10px 15px;
+            flex: 1;
+        }
+        .phone-input:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px #6C5CE7;
+        }
+        /* مسافات بين الحقول */
+        .field-gap {
+            margin-bottom: 0.75rem; /* ربع المسافة الأصلية تقريباً */
+        }
+        .button-gap {
+            margin-top: 0.75rem;
         }
         @media (max-width: 768px) {
-            .sidebar {
-                display: none;
-            }
-            .main-content {
-                margin-right: 0;
-                padding-bottom: 70px;
-            }
-            .mobile-nav {
-                display: flex;
-            }
-        }
-        @media (max-width: 480px) {
-            .logo { font-size: 1.2rem; }
-            .user-name { font-size: 0.9rem; }
-            .profile-card { padding: 20px; }
             .cover-container { height: 150px; }
-            .avatar-container { width: 80px; height: 80px; }
+            .avatar-container { bottom: -40px; }
             .avatar { width: 80px; height: 80px; }
             .profile-info h3 { font-size: 1.5rem; }
-            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .services-grid { grid-template-columns: 1fr; }
+            .mobile-nav { display: flex; }
         }
     </style>
 </head>
 <body>
-    <!-- القائمة الجانبية للكمبيوتر -->
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h4>مرحباً ${user.name}</h4>
-            <p>${user.role === 'admin' ? 'مدير' : user.profession || 'مهني'}</p>
-        </div>
-        <div class="sidebar-menu">
-            <a href="/services" class="sidebar-item">
-                <i class="fas fa-cogs"></i>
-                <span>إدارة الخدمات</span>
-            </a>
-            <a href="/availability" class="sidebar-item">
-                <i class="fas fa-clock"></i>
-                <span>إدارة المواعيد</span>
-            </a>
-            <a href="/bookings" class="sidebar-item">
-                <i class="fas fa-calendar-alt"></i>
-                <span>عرض الحجوزات</span>
-            </a>
-            <a href="/notifications" class="sidebar-item">
-                <i class="fas fa-bell"></i>
-                <span>الإشعارات</span>
-                ${unreadCount > 0 ? `<span class="badge-sidebar">${unreadCount > 9 ? '9+' : unreadCount}</span>` : ''}
-            </a>
-            <a href="/settings" class="sidebar-item">
-                <i class="fas fa-cog"></i>
-                <span>الإعدادات</span>
-            </a>
-            ${adminLink}
+    <!-- الشريط العلوي -->
+    <div class="top-bar">
+        <div class="top-bar-content">
+            <div class="logo">
+                <i class="fas fa-calendar-check"></i> نهر للحجوزات
+            </div>
+            <span class="user-name"><i class="fas fa-user"></i> ${user.name}</span>
         </div>
     </div>
 
-    <!-- المحتوى الرئيسي -->
-    <div class="main-content">
-        <!-- الشريط العلوي -->
-        <div class="top-bar">
-            <div class="top-bar-content">
-                <div class="logo">
-                    <i class="fas fa-calendar-check"></i> منصة الحجوزات
-                </div>
-                <span class="user-name"><i class="fas fa-user"></i> ${user.name}</span>
+    <!-- بطاقة الملف الشخصي -->
+    <div class="profile-card">
+        <div class="cover-container" style="position: relative;">
+            <div class="edit-overlay" onclick="openEditSheet('cover')">
+                <i class="fas fa-camera"></i>
             </div>
         </div>
-
-        <!-- بطاقة الملف الشخصي -->
-        <div class="profile-card">
-            <div class="cover-container" style="position: relative;">
-                <div class="edit-overlay" onclick="openEditSheet('cover')">
-                    <i class="fas fa-camera"></i>
-                </div>
+        <div class="avatar-container">
+            <img src="${user.profileImage || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=80'}" class="avatar">
+            <div class="edit-overlay" onclick="openEditSheet('avatar')">
+                <i class="fas fa-camera"></i>
             </div>
-            <div class="avatar-container">
-                <img src="${user.profileImage || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=80'}" class="avatar">
-                <div class="edit-overlay" onclick="openEditSheet('avatar')">
-                    <i class="fas fa-camera"></i>
-                </div>
+        </div>
+        <div class="profile-info">
+            <h3>${user.name}</h3>
+            <p>${user.profession || 'مهني'}</p>
+            <div class="share-btn" onclick="openShareSheet()">
+                <i class="fas fa-share-alt"></i> مشاركة الرابط
             </div>
-            <div class="profile-info">
-                <h3>${user.name}</h3>
-                <p>${user.profession || 'مهني'}</p>
-                <div class="share-btn" onclick="openShareSheet()">
-                    <i class="fas fa-share-alt"></i> مشاركة الرابط
-                </div>
-                <div class="profile-bio">
-                    ${user.bio || '✨ شارك العالم شيئاً عنك... أضف نبذة تعريفية!'}
-                    <div class="bio-edit" onclick="openEditSheet('bio')">
-                        <i class="fas fa-pencil-alt"></i>
-                    </div>
+            <div class="profile-bio">
+                ${user.bio || '✨ شارك العالم شيئاً عنك... أضف نبذة تعريفية!'}
+                <div class="bio-edit" onclick="openEditSheet('bio')">
+                    <i class="fas fa-pencil-alt"></i>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- شبكة الإحصائيات -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-                <div class="stat-number">${availabilityCount}</div>
-                <div class="stat-label">مواعيد متاحة</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
-                <div class="stat-number">${pendingCount}</div>
-                <div class="stat-label">معلقة</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-                <div class="stat-number">${confirmedCount}</div>
-                <div class="stat-label">مؤكدة</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
-                <div class="stat-number">${cancelledCount}</div>
-                <div class="stat-label">ملغاة</div>
-            </div>
+    <!-- شبكة الإحصائيات -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+            <div class="stat-number">${availabilityCount}</div>
+            <div class="stat-label">مواعيد متاحة</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-number">${pendingCount}</div>
+            <div class="stat-label">معلقة</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-number">${confirmedCount}</div>
+            <div class="stat-label">مؤكدة</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+            <div class="stat-number">${cancelledCount}</div>
+            <div class="stat-label">ملغاة</div>
         </div>
     </div>
 
@@ -814,7 +710,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
         <div class="sheet-body text-center">
             <p style="color:#2D3436; margin-bottom:15px;">رابط صفحتك العامة:</p>
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="text" class="form-control" id="profileLink" value="http://localhost:3000/p/${user._id}" readonly>
+                <input type="text" class="form-control" id="profileLink" value="https://nahr-booking.onrender.com/p/${user._id}" readonly>
                 <button class="btn-primary-custom" style="width: auto; padding: 10px 25px;" onclick="copyLink()"><i class="fas fa-copy"></i></button>
             </div>
             <div id="qrcode" style="display: flex; justify-content: center;"></div>
@@ -824,9 +720,9 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
-        // تمييز الرابط النشط في القائمة الجانبية للجوال والكمبيوتر
+        // تمييز الرابط النشط في القائمة الجانبية للجوال
         const currentPath = window.location.pathname;
-        document.querySelectorAll('.sidebar-item, .mobile-nav a').forEach(item => {
+        document.querySelectorAll('.mobile-nav a').forEach(item => {
             if (item.getAttribute('href') === currentPath) {
                 item.classList.add('active');
             }
@@ -934,7 +830,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
             document.getElementById('overlay').classList.add('show');
             if (!document.getElementById('qrcode').innerHTML) {
                 new QRCode(document.getElementById('qrcode'), {
-                    text: 'http://localhost:3000/p/${user._id}',
+                    text: 'https://nahr-booking.onrender.com/p/${user._id}',
                     width: 200,
                     height: 200,
                     colorDark: '#6C5CE7',
@@ -954,9 +850,7 @@ app.get('/dashboard', requireLogin, async (req, res) => {
 
         function closeSheet(sheetId) {
             document.getElementById(sheetId).classList.remove('show');
-            if (!document.querySelector('.bottom-sheet.show')) {
-                document.getElementById('overlay').classList.remove('show');
-            }
+            document.getElementById('overlay').classList.remove('show');
         }
 
         function closeAllSheets() {
