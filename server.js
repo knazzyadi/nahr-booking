@@ -875,7 +875,7 @@ app.get('/auth/logout', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('الخادم يعمل وقاعدة البيانات متصلة!');
+  res.redirect('/auth/login');
 });
 
 app.listen(PORT, () => {
