@@ -15,7 +15,12 @@ const Booking = require('./models/Booking');
 const Availability = require('./models/Availability');
 
 // الاتصال بقاعدة البيانات
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true
+})
   .then(() => console.log('✅ تم الاتصال بقاعدة البيانات بنجاح'))
   .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
